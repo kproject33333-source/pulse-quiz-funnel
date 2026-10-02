@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Найди свою программу — Pulse AI-тренер</title>
+  <meta name="description" content="Ответь на 4 вопроса — AI-тренер Pulse соберёт программу тренировок под тебя.">
+  <style>
+    :root {
+      --primary: #7B61FF;
+      --primary-dark: #6447F0;
+      --primary-soft: #EFEBFF;
+      --bg: #FFFFFF;
+      --text: #1A1A2E;
+      --muted: #6B6B80;
+      --accent: #FF6B6B;
+      --gray: #F5F5F7;
+      --border: #E6E6EE;
+      --radius: 18px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .app {
+      max-width: 480px;
+      margin: 0 auto;
+      min-height: 100%;
+      padding: 20px 20px 32px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ---------- шапка ---------- */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 40px;
+      margin-bottom: 16px;
+    }
+    .logo { font-weight: 800; font-size: 20px; letter-spacing: -0.02em; }
+    .logo span { color: var(--primary); }
+    .back {
+      border: none; background: none; color: var(--muted);
+      font-size: 15px; cursor: pointer; padding: 8px 0;
+      visibility: hidden;
+    }
+    .back.visible { visibility: visible; }
+
+    /* ---------- прогресс ---------- */
+    .progress { margin-bottom: 28px; }
+    .progress-label { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+    .progress-track { height: 6px; background: var(--gray); border-radius: 99px; overflow: hidden; }
+    .progress-bar {
+      height: 100%; width: 0; background: var(--primary);
+      border-radius: 99px; transition: width .4s ease;
+    }
+
+    /* ---------- экраны ---------- */
+    .screen { display: none; flex: 1; flex-direction: column; }
+    .screen.active { display: flex; animation: fadeIn .35s ease; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+    @keyframes slideIn { from { opacity: 0; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+    .slide { animation: slideIn .3s ease; }
+
+    h1 { font-size: 30px; line-height: 1.15; letter-spacing: -0.02em; margin-bottom: 12px; }
+    h2 { font-size: 24px; line-height: 1.2; letter-spacing: -0.01em; margin-bottom: 20px; }
+    .lead { font-size: 17px; color: var(--muted); margin-bottom: 28px; }
+
+    /* ---------- старт ---------- */
+    .intro-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--primary-soft); color: var(--primary-dark);
+      font-size: 13px; font-weight: 600;
+      padding: 6px 12px; border-radius: 99px; margin-bottom: 16px;
+      align-self: flex-start;
+    }
+
+    /* ---------- варианты ответа ---------- */
+    .options { display: flex; flex-direction: column; gap: 10px; }
+    .option {
+      display: flex; align-items: center; gap: 12px;
+      width: 100%; text-align: left;
+      background: var(--gray); border: 2px solid transparent;
+      border-radius: var(--radius);
+      padding: 16px 18px; font-size: 16px; color: var(--text);
+      cursor: pointer; transition: border-color .15s, background .15s, transform .1s;
+    }
+    .option:hover { border-color: var(--primary); }
+    .option:active { transform: scale(.98); }
+    .option.selected { border-color: var(--primary); background: var(--primary-soft); }
+    .option .emoji { font-size: 22px; flex-shrink: 0; }
+
+    /* ---------- кнопки ---------- */
+    .btn {
+      display: block; width: 100%;
+      background: var(--primary); color: #fff;
+      border: none; border-radius: var(--radius);
+      padding: 18px 20px; font-size: 17px; font-weight: 700;
+      cursor: pointer; text-align: center; text-decoration: none;
+      transition: background .15s, transform .1s;
+    }
+    .btn:hover { background: var(--primary-dark); }
+    .btn:active { transform: scale(.98); }
+    .btn:disabled { opacity: .6; cursor: default; }
+    .btn-note { text-align: center; font-size: 13px; color: var(--muted); margin-top: 10px; }
+    .push { margin-top: auto; padding-top: 24px; }
+
+    /* ---------- загрузка ---------- */
+    .loading { align-items: center; justify-content: center; text-align: center; }
+    .spinner {
+      width: 56px; height: 56px; border-radius: 50%;
+      border: 5px solid var(--primary-soft); border-top-color: var(--primary);
+      animation: spin 0.9s linear infinite; margin-bottom: 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---------- результат ---------- */
+    .result-tag { font-size: 14px; color: var(--primary-dark); font-weight: 600; margin-bottom: 6px; }
+    .meta {
+      display: inline-block; background: var(--primary-soft); color: var(--primary-dark);
+      font-weight: 600; font-size: 14px; padding: 8px 12px; border-radius: 12px; margin-bottom: 20px;
+    }
+    .features { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .features li { display: flex; gap: 10px; font-size: 15px; }
+
+    .preview {
+      position: relative; background: var(--gray); border-radius: var(--radius);
+      padding: 16px 18px; overflow: hidden;
+    }
+    .preview-title { font-size: 13px; color: var(--muted); font-weight: 600; margin-bottom: 10px; }
+    .preview ol { padding-left: 20px; filter: blur(5px); user-select: none; }
+    .preview li { margin-bottom: 6px; }
+    .preview-lock {
+      position: absolute; inset: 36px 0 0 0;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 600; font-size: 14px; color: var(--text);
+    }
+    .preview-lock span { background: rgba(255,255,255,.9); padding: 6px 12px; border-radius: 99px; }
+
+    .disclaimer {
+      font-size: 13px; color: var(--muted); background: #FFF4F4;
+      border-left: 3px solid var(--accent); padding: 10px 12px; border-radius: 8px; margin-top: 16px;
+    }
+
+    /* ---------- форма ---------- */
+    .field { margin-bottom: 12px; }
+    .field input {
+      width: 100%; font-size: 17px; padding: 16px 18px;
+      border: 2px solid var(--border); border-radius: var(--radius);
+      background: var(--bg); color: var(--text); outline: none;
+      transition: border-color .15s;
+    }
+    .field input:focus { border-color: var(--primary); }
+    .field.invalid input { border-color: var(--accent); }
+    .error { color: var(--accent); font-size: 13px; margin-top: 6px; display: none; }
+    .field.invalid .error, .consent.invalid .error { display: block; }
+
+    .consent { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-start; font-size: 14px; color: var(--muted); margin: 6px 0 4px; }
+    .consent input { width: 20px; height: 20px; accent-color: var(--primary); margin-top: 1px; flex-shrink: 0; }
+    .consent label { flex: 1; }
+    .consent a { color: var(--primary-dark); }
+    .consent .error { width: 100%; }
+    .form-error { color: var(--accent); font-size: 14px; text-align: center; margin-top: 10px; display: none; }
+
+    /* ---------- спасибо ---------- */
+    .steps { list-style: none; display: flex; flex-direction: column; gap: 14px; margin-bottom: 8px; }
+    .steps li { display: flex; gap: 12px; background: var(--gray); border-radius: var(--radius); padding: 14px 16px; font-size: 15px; }
+    .steps .emoji { font-size: 22px; }
+
+    @media (min-width: 600px) {
+      .app { padding-top: 40px; }
+      h1 { font-size: 36px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="header">
+      <div class="logo">Pulse<span>.</span></div>
+      <button class="back" id="back" type="button">← Назад</button>
+    </header>
+
+    <div class="progress" id="progress" hidden>
+      <div class="progress-label" id="progress-label">Вопрос 1 из 4</div>
+      <div class="progress-track"><div class="progress-bar" id="progress-bar"></div></div>
+    </div>
+
+    <!-- Старт -->
+    <section class="screen active" id="screen-intro">
+      <div class="intro-badge">🤖 AI-тренер Pulse</div>
+      <h1>Подберём тренировки под тебя — за минуту</h1>
+      <p class="lead">Ответь на 4 вопроса — AI-тренер Pulse соберёт программу под твою цель, уровень и расписание. Без регистрации и оплаты.</p>
+      <div class="push">
+        <button class="btn" id="start" type="button">Начать</button>
+      </div>
+    </section>
+
+    <!-- Квиз -->
+    <section class="screen" id="screen-quiz">
+      <div id="question"></div>
+    </section>
+
+    <!-- Загрузка -->
+    <section class="screen loading" id="screen-loading">
+      <div class="spinner"></div>
+      <h2>AI-тренер собирает твою программу…</h2>
+    </section>
+
+    <!-- Результат -->
+    <section class="screen" id="screen-result">
+      <div class="result-tag">Твоя программа</div>
+      <h1 id="result-title"></h1>
+      <p class="lead" id="result-desc" style="margin-bottom:16px"></p>
+      <div class="meta" id="result-meta"></div>
+
+      <ul class="features">
+        <li><span>📅</span><span>План на 4 недели — нагрузка растёт постепенно</span></li>
+        <li><span>🎯</span><span>Упражнения под твою цель и уровень</span></li>
+        <li><span>🤖</span><span>С мая — AI-тренер, который следит за техникой через камеру и подсказывает прямо во время упражнения</span></li>
+      </ul>
+
+      <div class="preview">
+        <div class="preview-title">Неделя 1 · Тренировка 1</div>
+        <ol id="result-preview"></ol>
+        <div class="preview-lock"><span>🔒 Пришлём на почту</span></div>
+      </div>
+
+      <div class="disclaimer" id="result-disclaimer" hidden>
+        Если перерыв был из-за родов или травмы — проконсультируйся с врачом перед началом.
+      </div>
+
+      <div class="push">
+        <button class="btn" id="to-email" type="button">Получить программу на почту →</button>
+        <p class="btn-note">Бесплатно. Пришлём план первой недели прямо сейчас.</p>
+      </div>
+    </section>
+
+    <!-- Email -->
+    <section class="screen" id="screen-email">
+      <h1>Куда прислать программу?</h1>
+      <p class="lead">Отправим план первой недели прямо сейчас — а в мае первыми позовём попробовать AI-тренера.</p>
+
+      <form id="form" novalidate>
+        <div class="field" id="field-name">
+          <input type="text" name="name" id="name" placeholder="Как тебя зовут?" autocomplete="given-name">
+          <div class="error">Напиши, как к тебе обращаться</div>
+        </div>
+        <div class="field" id="field-email">
+          <input type="email" name="email" id="email" placeholder="Твой email" autocomplete="email" inputmode="email">
+          <div class="error">Кажется, в адресе опечатка</div>
+        </div>
+        <div class="consent" id="field-consent">
+          <input type="checkbox" id="consent" name="consent">
+          <label for="consent">Согласна получать письма от Pulse и принимаю <a href="#" target="_blank" rel="noopener">политику обработки данных</a></label>
+          <div class="error">Отметь согласие — без него мы не можем отправить письмо</div>
+        </div>
+
+        <div class="push">
+          <button class="btn" id="submit" type="submit">Прислать программу</button>
+          <p class="btn-note">Без спама — пишем только по делу. Отписаться можно в один клик.</p>
+          <p class="form-error" id="form-error">Не получилось отправить. Проверь интернет и попробуй ещё раз.</p>
+        </div>
+      </form>
+    </section>
+
+    <!-- Спасибо -->
+    <section class="screen" id="screen-thanks">
+      <h1 id="thanks-title">Готово! 🎉</h1>
+      <p class="lead" id="thanks-sub"></p>
+      <ul class="steps">
+        <li><span class="emoji">📩</span><span><b>Через пару минут</b> придёт письмо с планом первой недели. Не видишь — загляни в «Промоакции» или «Спам».</span></li>
+        <li><span class="emoji">🏃</span><span><b>Начни с первой тренировки</b> сегодня или завтра — пятнадцать минут уже результат.</span></li>
+        <li><span class="emoji">🤖</span><span><b>В мае</b> напишем первой, когда запустится AI-тренер — он будет следить за техникой и подстраивать программу под тебя.</span></li>
+      </ul>
+      <div class="push">
+        <a class="btn" id="appstore" href="#" target="_blank" rel="noopener">Скачать Pulse в App Store →</a>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // ================== НАСТРОЙКИ ==================
+    // Сюда вставляется адрес формы (Formspree, Google Apps Script или своя функция для Altcraft).
+    // Пока адреса нет — форма работает в демо-режиме: данные выводятся в консоль браузера.
+    const FORM_ENDPOINT = 'https://formspree.io/f/YOUR_FORM_ID';
+    const APP_STORE_URL = '#';
+
+    // ================== ВОПРОСЫ ==================
+    const QUESTIONS = [
+      {
+        key: 'goal',
+        title: 'С чем хочешь, чтобы мы помогли?',
+        options: [
+          { value: 'weight',   emoji: '🔥', text: 'Сбросить вес и чувствовать себя легче' },
+          { value: 'strength', emoji: '💪', text: 'Подтянуть тело и стать сильнее' },
+          { value: 'move',     emoji: '🚶', text: 'Просто больше двигаться, без фанатизма' },
+          { value: 'comeback', emoji: '🔄', text: 'Вернуться в режим после перерыва' },
+        ],
+      },
+      {
+        key: 'level',
+        title: 'Как у тебя сейчас с тренировками?',
+        options: [
+          { value: 'zero',      emoji: '🌱', text: 'Начинаю с нуля — и это нормально' },
+          { value: 'long_ago',  emoji: '⏳', text: 'Были тренировки, но давно' },
+          { value: 'sometimes', emoji: '📆', text: 'Занимаюсь время от времени' },
+          { value: 'regular',   emoji: '📈', text: 'Тренируюсь регулярно, хочу прогресса' },
+        ],
+      },
+      {
+        key: 'place',
+        title: 'Где тебе удобнее заниматься?',
+        options: [
+          { value: 'home',      emoji: '🏠', text: 'Дома, без инвентаря' },
+          { value: 'home_gear', emoji: '🏋️', text: 'Дома, есть коврик или гантели' },
+          { value: 'gym',       emoji: '🏢', text: 'В зале' },
+          { value: 'anywhere',  emoji: '🌳', text: 'Где получится — дома, в зале, на улице' },
+        ],
+      },
+      {
+        key: 'time',
+        title: 'Сколько времени готова уделять за раз?',
+        options: [
+          { value: '15', emoji: '⏱', text: '15 минут — влезет в любой день' },
+          { value: '30', emoji: '⏱', text: '30 минут — золотая середина' },
+          { value: '45', emoji: '⏱', text: '45 минут и больше — люблю потренироваться основательно' },
+        ],
+      },
+    ];
+
+    // ================== ПРОГРАММЫ ==================
+    const PROGRAMS = {
+      soft_start: {
+        title: 'Мягкий старт',
+        desc: 'Три короткие тренировки в неделю, чтобы привыкнуть к движению и не перегореть в первую же неделю. Никаких прыжков и сложной техники — AI-тренер покажет, как выполнять каждое упражнение, и подстроит нагрузку под тебя.',
+        preview: ['Приседания к стулу', 'Отжимания от стены', 'Ягодичный мостик'],
+      },
+      comeback: {
+        title: 'Возвращение в ритм',
+        desc: 'Для тех, у кого был перерыв — из-за работы, родов, болезни или просто жизни. Начинаем мягче, чем ты помнишь: укрепляем спину и кор и постепенно возвращаем привычную нагрузку без риска перестараться.',
+        preview: ['Дыхание и активация кора', 'Ягодичный мостик', '«Кошка-корова»'],
+        disclaimer: true,
+      },
+      gym_plan: {
+        title: 'Зал с планом',
+        desc: 'Ты уже ходишь в зал — теперь у тебя будет чёткий план на каждую тренировку: упражнения, подходы, веса. AI-тренер отслеживает прогрессию и подсказывает, когда добавить нагрузку.',
+        preview: ['Приседания со штангой', 'Румынская тяга', 'Жим ногами'],
+      },
+      home_strength: {
+        title: 'Сила дома',
+        desc: 'Силовые тренировки дома — с весом тела или гантелями, если они есть. Работаем на тонус и силу: нагрузка растёт от недели к неделе вместе с тобой.',
+        preview: ['Приседания', 'Отжимания', 'Ягодичный мостик на одной ноге'],
+      },
+      light_move: {
+        title: 'Лёгкость в движении',
+        desc: 'Лёгкое кардио и функциональные упражнения, чтобы больше двигаться и чувствовать себя легче. Без изнуряющих марафонов — регулярность важнее интенсивности.',
+        preview: ['Интервальная ходьба на месте', 'Приседания', 'Планка'],
+      },
+    };
+
+    const TIME_TEXT = {
+      '15': '3 тренировки в неделю по 15 минут',
+      '30': '3 тренировки в неделю по 30 минут',
+      '45': '3–4 тренировки в неделю по 45 минут',
+    };
+    const PLACE_TEXT = {
+      home: 'вариант без инвентаря',
+      home_gear: 'вариант с гантелями',
+      gym: 'вариант для зала',
+      anywhere: 'вариант для дома и улицы',
+    };
+
+    // Логика персонализации: правила сверху вниз, первое совпадение — результат
+    function pickProgram(a) {
+      if (a.level === 'zero') return 'soft_start';
+      if (a.goal === 'comeback' || a.level === 'long_ago') return 'comeback';
+      if (a.place === 'gym') return 'gym_plan';
+      if (a.goal === 'strength') return 'home_strength';
+      return 'light_move';
+    }
+
+    // ================== СОСТОЯНИЕ ==================
+    const answers = {};
+    let step = 0;          // номер вопроса
+    let screen = 'intro';  // текущий экран
+    let program = null;
+
+    const $ = (id) => document.getElementById(id);
+
+    function show(name) {
+      screen = name;
+      document.querySelectorAll('.screen').forEach((s) => s.classList.remove('active'));
+      $('screen-' + name).classList.add('active');
+      $('progress').hidden = name !== 'quiz';
+      $('back').classList.toggle('visible', name === 'quiz' || name === 'email');
+      window.scrollTo(0, 0);
+    }
+
+    function renderQuestion() {
+      const q = QUESTIONS[step];
+      $('progress-label').textContent = `Вопрос ${step + 1} из ${QUESTIONS.length}`;
+      $('progress-bar').style.width = `${(step / QUESTIONS.length) * 100}%`;
+
+      const box = $('question');
+      box.className = 'slide';
+      box.innerHTML = `<h2>${q.title}</h2><div class="options"></div>`;
+      // перезапуск анимации
+      void box.offsetWidth;
+
+      const list = box.querySelector('.options');
+      q.options.forEach((opt) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'option' + (answers[q.key] === opt.value ? ' selected' : '');
+        btn.innerHTML = `<span class="emoji">${opt.emoji}</span><span>${opt.text}</span>`;
+        btn.addEventListener('click', () => choose(q.key, opt.value, btn));
+        list.appendChild(btn);
+      });
+    }
+
+    function choose(key, value, btn) {
+      answers[key] = value;
+      btn.parentElement.querySelectorAll('.option').forEach((b) => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      $('progress-bar').style.width = `${((step + 1) / QUESTIONS.length) * 100}%`;
+
+      setTimeout(() => {
+        if (step < QUESTIONS.length - 1) {
+          step++;
+          renderQuestion();
+        } else {
+          finishQuiz();
+        }
+      }, 250);
+    }
+
+    function finishQuiz() {
+      show('loading');
+      program = pickProgram(answers);
+      setTimeout(() => {
+        renderResult();
+        show('result');
+      }, 1600);
+    }
+
+    function renderResult() {
+      const p = PROGRAMS[program];
+      $('result-title').textContent = p.title;
+      $('result-desc').textContent = p.desc;
+      $('result-meta').textContent = `${TIME_TEXT[answers.time]} · ${PLACE_TEXT[answers.place]}`;
+      $('result-preview').innerHTML = p.preview.map((x) => `<li>${x}</li>`).join('');
+      $('result-disclaimer').hidden = !p.disclaimer;
+    }
+
+    // ================== НАВИГАЦИЯ ==================
+    $('start').addEventListener('click', () => {
+      step = 0;
+      show('quiz');
+      renderQuestion();
+    });
+
+    $('back').addEventListener('click', () => {
+      if (screen === 'email') { show('result'); return; }
+      if (screen === 'quiz') {
+        if (step === 0) { show('intro'); return; }
+        step--;
+        renderQuestion();
+      }
+    });
+
+    $('to-email').addEventListener('click', () => {
+      show('email');
+      setTimeout(() => $('name').focus(), 300);
+    });
+
+    // ================== ФОРМА ==================
+    function validate() {
+      const name = $('name').value.trim();
+      const email = $('email').value.trim();
+      const consent = $('consent').checked;
+      const okName = name.length > 0;
+      const okEmail = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email);
+      $('field-name').classList.toggle('invalid', !okName);
+      $('field-email').classList.toggle('invalid', !okEmail);
+      $('field-consent').classList.toggle('invalid', !consent);
+      return okName && okEmail && consent ? { name, email } : null;
+    }
+
+    ['name', 'email'].forEach((id) =>
+      $(id).addEventListener('input', () => $('field-' + id).classList.remove('invalid')));
+    $('consent').addEventListener('change', () => $('field-consent').classList.remove('invalid'));
+
+    $('form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = validate();
+      if (!data) return;
+
+      const payload = {
+        name: data.name,
+        email: data.email,
+        program: program,
+        program_title: PROGRAMS[program].title,
+        goal: answers.goal,
+        level: answers.level,
+        place: answers.place,
+        time: answers.time,
+        consent: true,
+        created_at: new Date().toISOString(),
+      };
+
+      const btn = $('submit');
+      btn.disabled = true;
+      btn.textContent = 'Отправляем…';
+      $('form-error').style.display = 'none';
+
+      try {
+        if (FORM_ENDPOINT.includes('YOUR_FORM_ID')) {
+          // демо-режим: адрес формы ещё не подключён
+          console.log('Демо-режим, данные формы:', payload);
+          await new Promise((r) => setTimeout(r, 600));
+        } else {
+          const res = await fetch(FORM_ENDPOINT, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+            body: JSON.stringify(payload),
+          });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+        }
+        $('thanks-title').textContent = `Готово, ${data.name}! 🎉`;
+        $('thanks-sub').textContent = `Программа «${PROGRAMS[program].title}» уже летит к тебе на почту.`;
+        show('thanks');
+      } catch (err) {
+        console.error(err);
+        $('form-error').style.display = 'block';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Прислать программу';
+      }
+    });
+
+    $('appstore').href = APP_STORE_URL;
+  </script>
+</body>
+</html>
